@@ -522,6 +522,37 @@ def trajectory_optimizer(input_path: str,
     traj_race_cl = np.vstack((trajectory_opt, trajectory_opt[0, :]))
     traj_race_cl[-1, 0] = np.sum(spline_data_opt[:, 0])  # set correct length
 
+    # [jimin] For ltpl_trajectory
+
+    s_raceline_preinterp_cl = np.cumsum(spline_lengths_opt)
+    s_raceline_preinterp_cl = np.insert(s_raceline_preinterp_cl, 0, 0.0)
+
+    psi_normvec = []
+    kappa_normvec = []
+    vx_normvec = []
+    ax_normvec = []
+
+    for s in list(s_raceline_preinterp_cl[:-1]):
+        # get closest point on trajectory_opt
+        idx = (np.abs(trajectory_opt[:, 0] - s)).argmin()
+
+        # get data at this index and append
+        psi_normvec.append(trajectory_opt[idx, 3])
+        kappa_normvec.append(trajectory_opt[idx, 4])
+        vx_normvec.append(trajectory_opt[idx, 5])
+        ax_normvec.append(trajectory_opt[idx, 6])
+
+    traj_ltpl = np.column_stack((reftrack_interp,
+                                 normvec_normalized_interp,
+                                 alpha_opt,
+                                 s_raceline_preinterp_cl[:-1],
+                                 psi_normvec,
+                                 kappa_normvec,
+                                 vx_normvec,
+                                 ax_normvec))
+    traj_ltpl_cl = np.vstack((traj_ltpl, traj_ltpl[0]))
+    traj_ltpl_cl[-1, 7] = s_raceline_preinterp_cl[-1]
+
     # print end time
     print("INFO: Runtime from import to final trajectory was %.2fs" % (time.perf_counter() - t_start))
 
@@ -573,4 +604,4 @@ def trajectory_optimizer(input_path: str,
                                                         bound2_interp=bound2,
                                                         trajectory=trajectory_opt)
 
-    return traj_race_cl, bound1, bound2, t_profile_cl[-1]  # also return estimated lap time
+    return traj_race_cl, bound1, bound2, t_profile_cl[-1], traj_ltpl_cl  # also return estimated lap time

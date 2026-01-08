@@ -31,6 +31,7 @@
 #include "f110_msgs/msg/wpnt_array.hpp"
 #include "f110_msgs/msg/obstacle_array.hpp"
 #include "f110_msgs/msg/pid_data.hpp"
+#include "f110_msgs/msg/purepursuit_control.hpp"
 
 // ament share dir
 #include "ament_index_cpp/get_package_share_directory.hpp"
@@ -76,7 +77,7 @@ public:
     state_ = "GB_TRACK";
 
     // 퍼블리셔
-    drive_pub_      = create_publisher<ackermann_msgs::msg::AckermannDriveStamped>("/drive", 10);
+    drive_pub_      = create_publisher<f110_msgs::msg::PurepursuitControl>("/purepursuit/control", 10);
     steering_pub_   = create_publisher<visualization_msgs::msg::Marker>("steering", 10);
     lookahead_pub_  = create_publisher<visualization_msgs::msg::Marker>("lookahead_point", 10);
     trailing_pub_   = create_publisher<visualization_msgs::msg::Marker>("trailing_opponent_marker", 10);
@@ -533,7 +534,7 @@ private:
   void imu_cb(const sensor_msgs::msg::Imu::SharedPtr msg) {
     // rolling buffer, (-acc_y) == long_acc
     for (size_t i=acc_now_.size()-1; i>0; --i) acc_now_[i] = acc_now_[i-1];
-    acc_now_[0] = msg->linear_acceleration.x;
+    acc_now_[0] = -msg->linear_acceleration.y;
   }
 
   void car_state_frenet_cb(const nav_msgs::msg::Odometry::SharedPtr msg) {
@@ -599,22 +600,35 @@ private:
 
   // -------------------- 메인 루프 --------------------
   void control_loop() {
-    double speed = 0.0, steer = 0.0;
+    // double speed = 0.0, steer = 0.0;
+
+    // if (mode_ == "MAP" && map_controller_) {
+    //   std::tie(speed, steer) = map_cycle_();
+    // } else if (mode_ == "PP" && pp_controller_) {
+    //   std::tie(speed, steer) = pp_cycle_();
+    // } else if (mode_ == "FTG" && ftg_controller_) {
+    //   std::tie(speed, steer) = ftg_cycle_();
+    // }
 
     if (mode_ == "MAP" && map_controller_) {
-      std::tie(speed, steer) = map_cycle_();
+      std::tie(speed_, steer_) = map_cycle_();
     } else if (mode_ == "PP" && pp_controller_) {
-      std::tie(speed, steer) = pp_cycle_();
+      std::tie(speed_, steer_) = pp_cycle_();
     } else if (mode_ == "FTG" && ftg_controller_) {
-      std::tie(speed, steer) = ftg_cycle_();
+      std::tie(speed_, steer_) = ftg_cycle_();
     }
 
-    ackermann_msgs::msg::AckermannDriveStamped ack;
-    ack.header.stamp = this->get_clock()->now();
-    ack.header.frame_id = "base_link";
-    ack.drive.steering_angle = steer;
-    ack.drive.speed = speed;
-    drive_pub_->publish(ack);
+    // if (speed_ < 0.05) std::cout << "case1111111111111" << std::endl;
+
+    // f110_msgs::msg::PurepursuitControl msg;
+    // msg.steering_angle = steer;  
+    // msg.speed          = speed;  
+    // drive_pub_->publish(msg);
+
+    f110_msgs::msg::PurepursuitControl msg;
+    msg.steering_angle = steer_;  
+    msg.speed          = speed_;  
+    drive_pub_->publish(msg);
   }
 
   std::pair<double,double> map_cycle_() {
@@ -633,10 +647,10 @@ private:
     double steer = std::get<3>(out);
 
     waypoint_safety_counter_++;
-    if (waypoint_safety_counter_ >= static_cast<int>(rate_hz_ / state_machine_rate_ * 10.0)) {
-      RCLCPP_WARN(get_logger(), "[controller_manager] Received no local wpnts. STOPPING!!");
-      speed = 0.0; steer = 0.0;
-    }
+    // if (waypoint_safety_counter_ >= static_cast<int>(rate_hz_ / state_machine_rate_ * 10.0)) {
+    //   RCLCPP_WARN(get_logger(), "[controller_manager] Received no local wpnts. STOPPING!!");
+    //   speed = 0.0; steer = 0.0;
+    // }
     return {speed, steer};
   }
 
@@ -654,11 +668,19 @@ private:
     double speed = std::get<0>(out);
     double steer = std::get<3>(out);
 
-    waypoint_safety_counter_++;
-    if (waypoint_safety_counter_ >= static_cast<int>(rate_hz_ / state_machine_rate_ * 10.0)) {
-      RCLCPP_WARN(get_logger(), "[controller_manager] Received no local wpnts. STOPPING!!");
-      speed = 0.0; steer = 0.0;
-    }
+    // if (speed <= 0.05) std::cout << "case33333333333" << std::endl;
+
+    set_lookahead_marker_(std::get<4>(out), /*id=*/201);
+
+    // waypoint_safety_counter_++;
+    // if (waypoint_safety_counter_ >= static_cast<int>(rate_hz_ / state_machine_rate_ * 10.0)) {
+    //   RCLCPP_WARN(get_logger(), "[controller_manager] Received no local wpnts. STOPPING!!");
+    //   speed = 0.0; steer = 0.0;
+    // }
+
+    // speed = std::clamp(speed, 1.0, 5.5);
+
+
     return {speed, steer};
   }
 
@@ -673,6 +695,7 @@ private:
     return out;
   }
 
+
 private:
   // 상태/설정
   std::string map_path_;
@@ -683,7 +706,7 @@ private:
   std::string LUT_name_;
   std::string mode_;
   bool mapping_{false};
-  double rate_hz_{30.0};
+  double rate_hz_{40.0};
   std::string state_;
 
   // 데이터 보관
@@ -708,12 +731,15 @@ private:
   double state_machine_range_offset_{0.0};
   double state_machine_track_width_{0.0};
 
+  double steer_;
+  double speed_;
+
   // YAML 로드된 L1 파라미터 (키→YAML::Node)
   std::unordered_map<std::string, YAML::Node> l1_params_;
 
   // ROS I/O
   rclcpp::TimerBase::SharedPtr timer_;
-  rclcpp::Publisher<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_pub_;
+  rclcpp::Publisher<f110_msgs::msg::PurepursuitControl>::SharedPtr drive_pub_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr steering_pub_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr lookahead_pub_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr trailing_pub_;

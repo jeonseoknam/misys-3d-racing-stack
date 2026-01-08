@@ -142,28 +142,93 @@ class OvertakingInterpolator(Node):
         self.get_logger().info("[OT Interpolator] initialized FrenetConverter object")
         return converter
 
+    # def get_interpolating_schedule(self):
+    #     length_wpnts = len(self.glb_wpnts_og.wpnts)
+    #     schedule = np.zeros(length_wpnts)
+    #     # this is the switching sector length, longer is smoother, unit is 0.1 m
+    #     switching_sec_len = self.spline_len
+
+    #     for i in range(self.n_sectors):
+    #         sector = f"Overtaking_sector{i}"
+    #         if self.sectors_params[sector]['ot_flag']:
+    #             if self.prev_sector_overtaking(i):
+    #                 schedule[self.sectors_params[sector]['start']:self.sectors_params[sector]['start']+switching_sec_len-1] = 1
+    #             else:
+    #                 for j in range(switching_sec_len):
+    #                     schedule[self.sectors_params[sector]['start']+j] = self.interpolating_function(j, switching_sec_len, mode='sigmoid')
+
+    #             if self.next_sector_overtaking(i):
+    #                 schedule[self.sectors_params[sector]['end']-switching_sec_len+1:self.sectors_params[sector]['end']+1] = 1
+    #             else:
+    #                 for j in range(1, switching_sec_len+1):
+    #                     schedule[self.sectors_params[sector]['end']-j] = self.interpolating_function(j, switching_sec_len, mode='sigmoid')
+
+    #             schedule[self.sectors_params[sector]['start']+switching_sec_len-1:self.sectors_params[sector]['end']-switching_sec_len+1] = 1
+
+    #     return schedule
+
     def get_interpolating_schedule(self):
         length_wpnts = len(self.glb_wpnts_og.wpnts)
-        schedule = np.zeros(length_wpnts)
-        # this is the switching sector length, longer is smoother, unit is 0.1 m
-        switching_sec_len = self.spline_len
+        schedule = np.zeros(length_wpnts, dtype=float)
+        switching_sec_len = int(self.spline_len)
+
+        def clamp_idx(i):
+            # 음수 또는 길이 이상이면 범위 내로
+            return int(np.clip(i, 0, length_wpnts-1))
 
         for i in range(self.n_sectors):
             sector = f"Overtaking_sector{i}"
-            if self.sectors_params[sector]['ot_flag']:
+            if not self.sectors_params[sector]['ot_flag']:
+                continue
+
+            # 원본 값
+            start_raw = int(self.sectors_params[sector]['start'])
+            end_raw   = int(self.sectors_params[sector]['end'])
+
+            # 클램프 + 정리
+            start = clamp_idx(start_raw)
+            end   = clamp_idx(end_raw)
+
+            if end < start:
+                # (단순 방어) 잘못된 설정이면 swap
+                start, end = end, start
+
+            # --- 앞쪽 스무딩 구간 (start → start+switching) ---
+            # 배열 끝을 넘지 않게 j 상한 조정
+            jmax_head = min(switching_sec_len, length_wpnts - start)
+            if jmax_head > 0:
                 if self.prev_sector_overtaking(i):
-                    schedule[self.sectors_params[sector]['start']:self.sectors_params[sector]['start']+switching_sec_len-1] = 1
+                    # 이전 섹터도 OT이면 바로 1로
+                    schedule[start:start + jmax_head] = 1.0
                 else:
-                    for j in range(switching_sec_len):
-                        schedule[self.sectors_params[sector]['start']+j] = self.interpolating_function(j, switching_sec_len, mode='sigmoid')
+                    for j in range(jmax_head):
+                        schedule[start + j] = self.interpolating_function(
+                            j, switching_sec_len, mode='sigmoid'
+                        )
 
+            # --- 뒤쪽 스무딩 구간 (end-switching → end) ---
+            jmax_tail = min(switching_sec_len, end + 1)  # end에서 아래로 내려가므로 end+1이 상한
+            if jmax_tail > 0:
                 if self.next_sector_overtaking(i):
-                    schedule[self.sectors_params[sector]['end']-switching_sec_len+1:self.sectors_params[sector]['end']+1] = 1
+                    schedule[end - jmax_tail + 1 : end + 1] = 1.0
                 else:
-                    for j in range(1, switching_sec_len+1):
-                        schedule[self.sectors_params[sector]['end']-j] = self.interpolating_function(j, switching_sec_len, mode='sigmoid')
+                    for j in range(1, jmax_tail + 1):
+                        schedule[end - j] = self.interpolating_function(
+                            j, switching_sec_len, mode='sigmoid'
+                        )
 
-                schedule[self.sectors_params[sector]['start']+switching_sec_len-1:self.sectors_params[sector]['end']-switching_sec_len+1] = 1
+            # --- 본구간 (스위칭 제외 중앙부) ---
+            core_start = start + jmax_head - 1
+            core_end   = end - jmax_tail + 1
+            if core_end > core_start:
+                schedule[core_start:core_end] = 1.0
+
+            # 디버그 로그 (문제 섹터 추적용)
+            if start_raw != start or end_raw != end:
+                self.get_logger().warn(
+                    f"[OT] sector{i} indices clamped: start {start_raw}->{start}, end {end_raw}->{end}, "
+                    f"len={length_wpnts}"
+                )
 
         return schedule
 

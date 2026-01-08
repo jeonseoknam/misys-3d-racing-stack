@@ -2,6 +2,7 @@
 #include <cmath>
 #include <limits>
 #include <algorithm>
+#include <iostream>
 
 PP_Controller::PP_Controller(
     double t_clip_min_,
@@ -78,7 +79,22 @@ PP_Controller::main_loop(const std::string& state,
   const double adv_ts_sp = speed_lookahead;
   const Vec2 la_pos{ pose_[0] + v[0]*adv_ts_sp, pose_[1] + v[1]*adv_ts_sp };
   const int idx_la = nearest_waypoint(la_pos, wp_);
-  double global_speed = (idx_la >= 0) ? wp_[idx_la][2] : 0.0;
+
+  // double global_speed = (idx_la >= 0) ? wp_[idx_la][2] : 0.0;
+
+  double global_speed = wp_[idx_la][2];
+
+  // === 디버그: 글로벌 속도 기반 ===
+  // if (idx_la < 0 || wp_.empty()) {
+  //   logger_warn(("kkkkkkkkkkkkkkkkkkkkkkkk[PP] global_speed=0 because " +
+  //               std::string(wp_.empty() ? "wp_empty" : "idx_la<0")).c_str());
+  // } else if (global_speed <= 0.05) {
+  //   logger_warn(("kkqqqqqqqqqqqqqqqqqqqqqqqqqq[PP] global_speed≈0 at idx_la=" + std::to_string(idx_la)).c_str());
+  // }
+
+  std::cout << "idx_la: " << idx_la << "path speed: " << global_speed << std::endl;
+
+
 
   if (state_ == "StateType.TRAILING" && opp_ && frenet_) {
     speed_command_ = trailing_controller(global_speed);
@@ -89,12 +105,18 @@ PP_Controller::main_loop(const std::string& state,
     speed_command_ = global_speed;
   }
 
+  // if (speed_command_ < 0.05) std::cout<<"qweqweqweqwe" << std::endl;
+
   // 곡률 최신값을 반영해 감속
   speed_command_ = speed_adjust_lat_err(speed_command_, lat_e_norm);
   speed_command_ = speed_adjust_heading(speed_command_);
 
+  // if (speed_command_ < 0.05) std::cout<<"zzzzzzzzzzzzzzssss" << std::endl;
+
   // POSTPROCESS ...
   double speed = std::isfinite(speed_command_) ? std::max(speed_command_, 0.0) : 0.0;
+
+  // if (speed_command_ < 0.05) std::cout<<"hhhhhhhhhhhhhhhhhhhhhhh" << std::endl;
 
   // LATERAL (이미 계산한 L1을 재사용)
   double steering_angle = calc_steering_angle(L1_point, L1_distance, yaw, lat_e_norm, v);
@@ -140,7 +162,7 @@ std::pair<double,double> PP_Controller::calc_lateral_error_norm() const {
 double PP_Controller::speed_adjust_lat_err(double global_speed, double lat_e_norm) const {
   const double lat_e_coeff = clip(lat_err_coeff, 0.0, 1.0);
   const double lat_e = lat_e_norm * 2.0;
-  const double curv = clip(curvature_waypoints_ / 0.65, 0.0, 1.0); // 0.65 하드코딩 된 것이므로 추후 개선 필요 
+  const double curv = clip(curvature_waypoints_ / 0.95, 0.0, 1.0); // 0.65 하드코딩 된 것이므로 추후 개선 필요 
   return global_speed * (1.0 - lat_e_coeff + lat_e_coeff*std::exp(-lat_e*curv));
 }
 
@@ -161,7 +183,7 @@ double PP_Controller::speed_adjust_heading(double speed_command) const {
   // 임계값 및 최소 스케일
   const double ok_thresh   = M_PI / 9.0; // ≈ 20 degrees
   const double hard_thresh = M_PI / 2.0;  // 90 degrees
-  const double min_scale   = 0.7;         // 최소 70%
+  const double min_scale   = 0.8;         // 최소 70%
 
   double scale = 1.0;
   if (heading_error <= ok_thresh) {

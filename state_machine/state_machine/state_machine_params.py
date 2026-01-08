@@ -173,7 +173,7 @@ class StateMachineParams:
             type=ParameterType.PARAMETER_DOUBLE,
             floating_point_range=[FloatingPointRange(
                 from_value=0.0,
-                to_value=2.0,
+                to_value=5.0,
                 step=0.1)]
         )
         node.set_descriptor("splini_hyst_timer_sec", descriptor=descriptor)

@@ -7,7 +7,7 @@ from rosidl_runtime_py.convert import message_to_ordereddict
 from rosidl_runtime_py.set_message import set_message_fields
 
 from visualization_msgs.msg import MarkerArray
-from f110_msgs.msg import WpntArray
+from f110_msgs.msg import WpntArray, LtplWpntArray
 from std_msgs.msg import String, Float32
 from typing import Tuple, List, Dict
 
@@ -63,8 +63,22 @@ def write_global_waypoints(map_dir: str,
 
     # serialize
     with open(path, 'w') as f:
-        json.dump(d, f)
+        json.dump(d, f, indent = 2)
 
+# [jimin] write ltpl waypoits to JSON file
+def write_ltpl_waypoints(map_dir: str, 
+                         map_info_str: str, 
+                         ltpl_traj_wpnts: LtplWpntArray):
+
+    path = os.path.join(map_dir, 'ltpl_waypoints.json')
+    print(f"[INFO] WRITE_LTPL_WAYPOINTS: Writing ltpl waypoints to {path}")
+
+    d: Dict[str, Dict] = {}
+    d['map_info_str'] = {'data': map_info_str}
+    d['ltpl_traj_wpnts'] = message_to_ordereddict(ltpl_traj_wpnts)
+
+    with open(path, 'w') as f:
+        json.dump(d, f, indent = 2)
 
 def read_global_waypoints(map_dir: str) -> Tuple[
     String, Float32, MarkerArray, WpntArray, MarkerArray, WpntArray, MarkerArray, WpntArray, MarkerArray
@@ -130,3 +144,28 @@ def read_global_waypoints(map_dir: str) -> Tuple[
         centerline_markers, centerline_waypoints, \
         global_traj_markers_iqp, global_traj_wpnts_iqp, \
         global_traj_markers_sp, global_traj_wpnts_sp, trackbounds_markers
+
+def read_ltpl_waypoints(map_dir: str) -> Tuple[String, LtplWpntArray]:
+    '''
+    Reads map information from a JSON file with path specified `map_dir`.
+
+    Outputs Message objects as follows:
+    - map_info_str
+        - from topic /map_infos_ltpl: String
+    - ltpl_traj_wpnts
+        - from topic /ltpl_waypoints: LtplWpntArray
+    '''
+    path = os.path.join(map_dir, 'ltpl_waypoints.json')
+
+    print(f"[INFO] READ_LTPL_WAYPOINTS: Reading ltpl waypoints from {path}")
+    # Deserialize JSON and Reconstruct the maps elements
+    with open(path, 'r') as f:
+        d: Dict[str, List] = json.load(f)
+
+    map_info_str = String()
+    set_message_fields(map_info_str, d['map_info_str'])
+
+    ltpl_traj_wpnts = LtplWpntArray()
+    set_message_fields(ltpl_traj_wpnts, d['ltpl_traj_wpnts'])
+
+    return map_info_str, ltpl_traj_wpnts

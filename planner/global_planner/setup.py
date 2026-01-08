@@ -21,7 +21,8 @@ setup(
     entry_points={
         'console_scripts': [
             'global_planner = global_planner.global_planner_node:main',
-            'global_trajectory_publisher = global_planner.global_trajectory_publisher:main'
+            'global_trajectory_publisher = global_planner.global_trajectory_publisher:main',
+            'center_to_trackjson = global_planner.center_to_trackjson:main'
         ],
     },
 )

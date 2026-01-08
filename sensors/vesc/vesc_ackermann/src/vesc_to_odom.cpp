@@ -62,7 +62,7 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   declare_parameter("steering_angle_to_servo_gain", 1.0);
   declare_parameter("steering_angle_to_servo_offset", 0.0);
   declare_parameter("wheelbase", 0.2);
-  declare_parameter("publish_tf", false);
+  declare_parameter("publish_tf", true);
 
 
   // get ROS parameters
@@ -184,7 +184,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     tf.transform.rotation = odom.pose.pose.orientation;
 
     if (rclcpp::ok()) {
-      tf_pub_->sendTransform(tf);
+      //tf_pub_->sendTransform(tf);
     }
   }
 

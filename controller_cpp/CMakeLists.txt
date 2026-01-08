@@ -17,8 +17,10 @@ find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 # 필요 시
 find_package(f110_msgs REQUIRED)
+find_package(mpcc_ros REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
@@ -34,6 +36,9 @@ add_executable(controller_manager_cpp
   src/ftg.cpp
 )
 
+add_executable(top_controller src/top_controller.cpp)
+
+
 target_include_directories(controller_manager_cpp PRIVATE include)
 
 ament_target_dependencies(controller_manager_cpp
@@ -42,9 +47,15 @@ ament_target_dependencies(controller_manager_cpp
   f110_msgs tf2 tf2_geometry_msgs
 )
 
+ament_target_dependencies(top_controller
+rclcpp std_msgs sensor_msgs ackermann_msgs mpcc_ros f110_msgs)
+
 target_link_libraries(controller_manager_cpp yaml-cpp)
 
 install(TARGETS controller_manager_cpp
+  DESTINATION lib/${PROJECT_NAME})
+
+install(TARGETS top_controller 
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch

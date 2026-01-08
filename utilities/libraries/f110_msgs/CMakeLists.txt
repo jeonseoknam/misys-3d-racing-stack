@@ -39,10 +39,14 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/WpntArray.msg"
   "msg/OpponentTrajectory.msg"
   "msg/OppWpnt.msg"
+  "msg/LtplWpnt.msg"
+  "msg/LtplWpntArray.msg"
+  "msg/PurepursuitControl.msg"
   DEPENDENCIES 
   "std_msgs"
   "geometry_msgs"
  )
+
 
 install(
   FILES my_mapping_rules.yaml

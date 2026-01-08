@@ -170,7 +170,7 @@ class OvertakingSectorSlicer(Node):
             dict_file['Overtaking_sector' + str(i)] = {'start':self.sector_pnts[i] if i == 0 else self.sector_pnts[i] + 1,
                                             'end':self.sector_pnts[i+1]
                                             }
-            dict_file['Overtaking_sector' + str(i)].update({'ot_flag': False})
+            dict_file['Overtaking_sector' + str(i)].update({'ot_flag': True})
         ros_yaml_preamble = {'ot_interpolator': {'ros__parameters': dict_file}}
         
         #Save yaml to the respective maps folder 

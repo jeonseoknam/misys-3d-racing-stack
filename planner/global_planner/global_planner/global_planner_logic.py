@@ -11,7 +11,7 @@ from matplotlib.widgets import Button
 from pathlib import Path
 
 from std_msgs.msg import Float32
-from f110_msgs.msg import WpntArray
+from f110_msgs.msg import WpntArray, LtplWpnt, LtplWpntArray
 from nav_msgs.msg import OccupancyGrid
 from visualization_msgs.msg import MarkerArray
 from geometry_msgs.msg import Point, PoseStamped
@@ -20,7 +20,7 @@ from skimage.morphology import skeletonize
 from tf_transformations import euler_from_quaternion
 
 import trajectory_planning_helpers as tph
-from .readwrite_global_waypoints import write_global_waypoints
+from .readwrite_global_waypoints import write_global_waypoints, write_ltpl_waypoints
 from global_racetrajectory_optimization import helper_funcs_glob
 from global_racetrajectory_optimization.trajectory_optimizer import trajectory_optimizer
 
@@ -32,7 +32,8 @@ from .global_planner_utils import extract_centerline, \
     write_centerline, \
     publish_track_bounds, \
     create_wpnts_markers, \
-    compare_direction
+    compare_direction, \
+    create_np_to_LtplWpntArray
 
 
 class GlobalPlannerLogic:
@@ -396,8 +397,8 @@ class GlobalPlannerLogic:
 
         self.loginfo('Start Global Trajectory optimization with iterative minimum curvature...')
         try:
-            global_trajectory_iqp, bound_r_iqp, bound_l_iqp, est_t_iqp = trajectory_optimizer(
-                input_path=self.input_path, track_name=iqp_centerline_path, curv_opt_type='mincurv', safety_width=self.safety_width, plot=(
+            global_trajectory_iqp, bound_r_iqp, bound_l_iqp, est_t_iqp, ltpl_traj_wpnts = trajectory_optimizer(
+                input_path=self.input_path, track_name=iqp_centerline_path, curv_opt_type='mincurv_iqp', safety_width=self.safety_width, plot=(
                     self.show_plots and not self.map_editor_mode))
         except RuntimeError as e:
             self.logwarn(f"Error during iterative minimum curvature optimization, error: {e}")
@@ -439,7 +440,7 @@ class GlobalPlannerLogic:
         self.loginfo('Start Global Trajectory optimization with iterative minimum curvature for overtaking...')
         global_trajectory_iqp_ot, *_ = trajectory_optimizer(input_path=self.input_path,
                                                             track_name=iqp_centerline_path,
-                                                            curv_opt_type='mincurv',
+                                                            curv_opt_type='mincurv_iqp',
                                                             safety_width=self.safety_width_sp,
                                                             plot=(self.show_plots and not self.map_editor_mode))
 
@@ -458,8 +459,8 @@ class GlobalPlannerLogic:
 
         # to use iqp as new centerline, set trackname='map_centerline_2', otherwise use track_name='map_centerline'
         # is a bit faster but cuts corner a bit more
-        global_trajectory_sp, bound_r_sp, bound_l_sp, est_t_sp = trajectory_optimizer(
-            input_path=self.input_path, track_name=sp_centerline_path, curv_opt_type='mincurv', safety_width=self.safety_width_sp, plot=(
+        global_trajectory_sp, bound_r_sp, bound_l_sp, est_t_sp, _ = trajectory_optimizer(
+            input_path=self.input_path, track_name=sp_centerline_path, curv_opt_type='shortest_path', safety_width=self.safety_width_sp, plot=(
                 self.show_plots and not self.map_editor_mode))
 
         self.est_lap_time = Float32()  # variable which will be published and used in l1_param_optimizer
@@ -480,7 +481,7 @@ class GlobalPlannerLogic:
                                                safety_width=self.safety_width_sp,
                                                show_plots=self.show_plots,
                                                reverse=self.reverse_mapping)
-
+        
         global_traj_wpnts_sp, global_traj_markers_sp = self.create_wpnts_markers(trajectory=global_trajectory_sp,
                                                                                  d_right=d_right_sp,
                                                                                  d_left=d_left_sp,
@@ -503,6 +504,16 @@ class GlobalPlannerLogic:
             global_traj_wpnts_sp,
             bounds_markers
         )
+
+        # [jimin] save ltpl_info into a JSON file
+        ltpl_traj_wpnts = create_np_to_LtplWpntArray(ltpl_traj_wpnts)
+
+        write_ltpl_waypoints(
+            self.map_dir,
+            self.map_info_str,
+            ltpl_traj_wpnts
+        )
+
         return True
 
     def filter_map_occupancy_grid(self) -> np.ndarray:

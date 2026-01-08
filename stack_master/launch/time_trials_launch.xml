@@ -27,4 +27,12 @@
         <arg name="overtake_mode" value="dummy"/>
     </include>
 
+    <!-- === MPCC node 추가 === -->
+    <!-- <node
+        pkg="mpcc_ros"
+        exec="mpcc_node"
+        name="mpcc_node"
+        output="screen">
+    </node> -->
+
 </launch>

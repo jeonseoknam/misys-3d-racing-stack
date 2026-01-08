@@ -11,7 +11,7 @@ import trajectory_planning_helpers as tph
 from global_racetrajectory_optimization import helper_funcs_glob
 
 from geometry_msgs.msg import Point
-from f110_msgs.msg import Wpnt, WpntArray
+from f110_msgs.msg import Wpnt, WpntArray, LtplWpnt, LtplWpntArray
 from visualization_msgs.msg import Marker, MarkerArray
 
 
@@ -273,19 +273,15 @@ def extract_track_bounds(
     if norm_angle_right < -np.pi:
         norm_angle_right = norm_angle_right + 2 * np.pi
 
-    if compare_direction(norm_angle_right, bound_direction):
-        bound_right = bound_long_meter
-        bound_left = bound_short_meter
-    else:
-        bound_right = bound_short_meter
-        bound_left = bound_long_meter
+    # if compare_direction(norm_angle_right, bound_direction):
+    #     bound_right = bound_long_meter
+    #     bound_left = bound_short_meter
+    # else:
+    #     bound_right = bound_short_meter
+    #     bound_left = bound_long_meter
 
-    # # if compare_direction(norm_angle_right, bound_direction):
-    # bound_right = bound_long_meter
-    # bound_left = bound_short_meter
-    # # else:
-    # #     bound_right = bound_short_meter
-    # #     bound_left = bound_long_meter
+    bound_right = bound_long_meter
+    bound_left = bound_short_meter
 
     if show_plots and not map_editor_mode:
         plt.imshow(cent_img, cmap='gray')
@@ -709,3 +705,35 @@ def compare_direction(alpha: float, beta: float) -> bool:
         delta_theta = 2 * np.pi - delta_theta
 
     return delta_theta < np.pi / 2
+
+# [jimin] convert np.ndarray to LtplWpntArray
+def create_np_to_LtplWpntArray(trajectory: np.ndarray) -> LtplWpntArray:
+    """
+    Convert a numpy trajectory array to LtplWpntArray ROS message.
+    
+    trajectory: np.ndarray with shape (N, 12)
+        Columns must follow the order:
+        [x_ref_m, y_ref_m, width_right_m, width_left_m,
+        x_normvec_m, y_normvec_m, alpha_m, s_racetraj_m,
+        psi_racetraj_rad, kappa_racetraj_radpm,
+        vx_racetraj_mps, ax_racetraj_mps2]
+    """
+    ltpl_wpnts = LtplWpntArray()
+    
+    for i in range(trajectory.shape[0]):
+        wp = LtplWpnt()
+        wp.x_ref_m = float(trajectory[i, 0])
+        wp.y_ref_m = float(trajectory[i, 1])
+        wp.width_right_m = float(trajectory[i, 2])
+        wp.width_left_m = float(trajectory[i, 3])
+        wp.x_normvec_m = float(trajectory[i, 4])
+        wp.y_normvec_m = float(trajectory[i, 5])
+        wp.alpha_m = float(trajectory[i, 6])
+        wp.s_racetraj_m = float(trajectory[i, 7])
+        wp.psi_racetraj_rad = float(trajectory[i, 8])
+        wp.kappa_racetraj_radpm = float(trajectory[i, 9])
+        wp.vx_racetraj_mps = float(trajectory[i, 10])
+        wp.ax_racetraj_mps2 = float(trajectory[i, 11])
+        ltpl_wpnts.ltplwpnts.append(wp)
+    
+    return ltpl_wpnts

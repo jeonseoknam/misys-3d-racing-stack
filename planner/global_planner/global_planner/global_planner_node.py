@@ -5,7 +5,7 @@ import rclpy
 from rclpy.node import Node
 from ament_index_python.packages import get_package_share_directory
 
-from f110_msgs.msg import WpntArray
+from f110_msgs.msg import WpntArray, LtplWpntArray
 from nav_msgs.msg import OccupancyGrid
 from std_msgs.msg import String, Float32
 from geometry_msgs.msg import PoseStamped
@@ -13,7 +13,7 @@ from visualization_msgs.msg import MarkerArray
 
 from .global_planner_utils import get_data_path
 from .global_planner_logic import GlobalPlannerLogic
-from .readwrite_global_waypoints import read_global_waypoints
+from .readwrite_global_waypoints import read_global_waypoints, read_ltpl_waypoints
 
 
 class GlobalPlanner(Node):
@@ -84,6 +84,9 @@ class GlobalPlanner(Node):
         # Estimated lap time (for l1_param_optimizer)
         self.est_lap_time_pub = self.create_publisher(Float32, '/estimated_lap_time', 10)
 
+        self.map_infos_ltpl_pub = self.create_publisher(String, '/map_infos_ltpl', 10)
+        self.ltpl_waypoints_pub = self.create_publisher(LtplWpntArray, '/ltpl_waypoints', 10)
+
         # Main loop
         self.create_timer(1 / self.rate, self.global_plan_callback)
 
@@ -145,6 +148,9 @@ class GlobalPlanner(Node):
                 glb_markers, glb_wpnts, \
                 glb_sp_markers, glb_sp_wpnts, \
                 track_bounds = read_global_waypoints(map_dir=self.map_dir)
+            
+            map_infos_ltpl, ltpl_wpnts = read_ltpl_waypoints(map_dir=self.map_dir)
+
         except FileNotFoundError as e:
             self.get_logger().error(f"{e}. Not republishing waypoints.")
             return
@@ -158,7 +164,9 @@ class GlobalPlanner(Node):
         self.shortest_path_waypoints_markers_pub.publish(glb_sp_markers)
         self.map_infos_pub.publish(map_infos)
         self.est_lap_time_pub.publish(est_lap_time)
-
+        # [jimin] generate ltpl topic
+        self.map_infos_ltpl_pub.publish(map_infos_ltpl)
+        self.ltpl_waypoints_pub.publish(ltpl_wpnts)
 
 def main(args=None):
     rclpy.init(args=args)

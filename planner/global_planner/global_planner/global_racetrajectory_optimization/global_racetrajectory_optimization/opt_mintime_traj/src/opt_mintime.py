@@ -840,20 +840,11 @@ def opt_mintime(reftrack: np.ndarray,
     # concatenate NLP vectors
     w = ca.vertcat(*w)
     g = ca.vertcat(*g)
-    # w0 = np.concatenate(w0)
-    # lbw = np.concatenate(lbw)
-    # ubw = np.concatenate(ubw)
-    # lbg = np.concatenate(lbg)
-    # ubg = np.concatenate(ubg)
-
-    from casadi import DM
-
-    w0  = DM([item for sublist in w0  for item in sublist])
-    lbw = DM([item for sublist in lbw for item in sublist])
-    ubw = DM([item for sublist in ubw for item in sublist])
-    lbg = DM([item for sublist in lbg for item in sublist])
-    ubg = DM([item for sublist in ubg for item in sublist])
-
+    w0 = np.concatenate(w0)
+    lbw = np.concatenate(lbw)
+    ubw = np.concatenate(ubw)
+    lbg = np.concatenate(lbg)
+    ubg = np.concatenate(ubg)
 
     # concatenate output vectors
     x_opt = ca.vertcat(*x_opt)

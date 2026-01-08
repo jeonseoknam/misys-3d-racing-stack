@@ -11,4 +11,7 @@
     <param name="LU_table" value="$(var LU_table)"/>
     <param name="mapping" value="$(var mapping)"/>
   </node>
+
+  <node pkg="controller_cpp" exec="top_controller" name="top_controller" output="screen"></node>
+  
 </launch>

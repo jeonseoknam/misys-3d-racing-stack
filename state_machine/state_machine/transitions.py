@@ -27,6 +27,7 @@ def timetrials_transition(state_machine: StateMachine)->str:
 def head_to_head_transition(state_machine: StateMachine)->str:
     match state_machine.state:
         case StateType.GB_TRACK:
+            # print("i'm innnnnnnnnnnnnnnnnnn")
             return SpliniGlobalTrackingTransition(state_machine)
         case StateType.TRAILING:
             return SpliniTrailingTransition(state_machine)
@@ -43,6 +44,8 @@ def head_to_head_transition(state_machine: StateMachine)->str:
 
 
 def SpliniGlobalTrackingTransition(state_machine: StateMachine) -> StateType:
+    # print("HELLOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO")
+
     """Transitions for being in `StateType.GB_TRACK`"""
     if not state_machine._check_only_ftg_zone:
         if state_machine._check_gbfree:
@@ -59,6 +62,14 @@ def SpliniTrailingTransition(state_machine: StateMachine) -> StateType:
 
     if not state_machine._check_only_ftg_zone:
         # If we have been sitting around in TRAILING for a while then FTG
+        # print("gb_freeeeeeeeeeeeeee eeeeeeeeeee", gb_free)
+        # print("ooooooooooooooooooooooooooooooooot_sector", ot_sector)
+        # print("check_availability:   ", state_machine._check_availability_splini_wpts)
+        # print("ot_free:   ", state_machine._check_ofree)
+        # print("gb_free: ", gb_free)
+        # print("ot_sector: ", ot_sector)
+
+        # print("ccccccccccccccccccccccccccccccccheck_ofree", state_machine._check_ofree)
         if state_machine._check_ftg:
             return StateType.FTGONLY
         if not gb_free and not ot_sector:
@@ -66,17 +77,22 @@ def SpliniTrailingTransition(state_machine: StateMachine) -> StateType:
 
         # 아래와 같이 바로 GB_TRACK로 전환하지 않고 TRAILING_TO_GBTRACK로 전환하도록 수정
         elif gb_free and state_machine._check_close_to_raceline:
+            # print("Trailing to GB_TRACKKKKKKKKKKKKKKKKKk")
+            # print("gb_free: ", gb_free)
+            # print("close_to_gb: ", state_machine._check_close_to_raceline)
+
             return StateType.TRAILING_TO_GBTRACK
 
-
         elif (
-            not gb_free
-            and ot_sector
-            and state_machine._check_availability_splini_wpts
+            not gb_free 
+            and ot_sector 
+            and state_machine._check_availability_splini_wpts 
             and state_machine._check_ofree
         ):
+            print("START___________________________OVERTAKING",gb_free, ot_sector, state_machine._check_availability_splini_wpts, state_machine._check_ofree)
             return StateType.OVERTAKE
         else:
+            print("AGAIN_TRAILING", gb_free, ot_sector, state_machine._check_availability_splini_wpts, state_machine._check_ofree)
             return StateType.TRAILING
     else:
         return StateType.FTGONLY
@@ -84,7 +100,7 @@ def SpliniTrailingTransition(state_machine: StateMachine) -> StateType:
 def SpliniTrailingToGbtrackTransition(state_machine: StateMachine) -> StateType:
     """Transitions for being in `StateType.TRAILING_TO_GBTRACK`"""
     # GB_TRACK 이외의 다른 상태로 return 할 때에는 trailing_to_gbtrack_count를 0으로 리셋해주기
-    
+    print("ENTER TRAILING_TO_GBTRACK")
     gb_free = state_machine._check_gbfree
     ot_sector = state_machine._check_ot_sector
 

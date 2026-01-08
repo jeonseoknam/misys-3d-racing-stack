@@ -77,7 +77,7 @@ class StateMachine(Node):
                 self.get_logger().info("Waiting for car state pose message", throttle_duration_sec=0.5)
                 rclpy.spin_once(self)
 
-
+            # self.get_logger().info("hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
             self.last_valid_avoidance_wpnts = None
             self.splini_ttl_counter = 0
             self.avoidance_wpnts = None
@@ -106,6 +106,7 @@ class StateMachine(Node):
         elif self.params.mode == 'timetrials':
             self.state_transition = timetrials_transition
         elif self.params.mode == 'head_to_head':
+            # self.get_logger().info("hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
             self.state_transition = head_to_head_transition
         else:
             raise NotImplementedError(f"Mode {self.params.mode} not recognized")
@@ -120,10 +121,12 @@ class StateMachine(Node):
         self.vis_loc_wpnt_pub = self.create_publisher(MarkerArray, 'local_waypoints/markers', 10)
         
         # main loop
+        # self.get_logger().info("I'm about to get inside a LOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOP")
         self.main_loop = self.create_timer(1/self.params.rate_hz, self.main_loop_callback)
 
         # set up ot param reading
         self.init_ot_params()
+        # self.get_logger().info("init_ot_params_successfullyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
 
         # 카운터 초기화
         self.trailing_to_gbtrack_count = 0
@@ -164,6 +167,7 @@ class StateMachine(Node):
             self.splini_ttl_counter = int(self.params.splini_ttl * self.params.rate_hz)
             self.avoidance_wpnts = data
         else:
+            # self.get_logger().info("no_____waypoints receiveddddddddddddddddddddddddddddddddddddddddddddd")
         # If empty we don't overwrite the avoidance waypoints
             pass
 
@@ -221,6 +225,7 @@ class StateMachine(Node):
 
         if self.params.overtake_mode == "spliner":
             if self.last_valid_avoidance_wpnts is not None:
+                # self.get_logger().info(f"O_FREE False, obs dist to ot lane: {ot_obs_dist} m")
                 horizon = self.params.overtaking_horizon_m  # Horizon in front of cur_s [m]
 
                 for obs in self.obstacles:
@@ -235,9 +240,10 @@ class StateMachine(Node):
                         )
                         ot_d = self.last_valid_avoidance_wpnts[avoid_wpnt_idx].d_m
                         ot_obs_dist = ot_d - obs_d
-                        if abs(ot_obs_dist) < self.params.lateral_width_ot_m:
+                        if abs(ot_obs_dist) < self.params.lateral_width_ot_m: #이값이 
                             o_free = False
-                            self.get_logger().info(f"O_FREE False, obs dist to ot lane: {ot_obs_dist} m")
+                            # print("o_freeeeeeeeeee:" ,abs(ot_obs_dist))
+                            # self.get_logger().info(f"O_FREE False, obs dist to ot lane: {ot_obs_dist} m")
                             break
             else:
                 o_free = True
@@ -258,7 +264,9 @@ class StateMachine(Node):
             gap = (obs_s - self.cur_s) % self.track_length
             if gap < horizon:
                 obs_d = obs.d_center
+                # print("gap is small tan horizon!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
                 # Get d wrt to mincurv from the overtaking line
+                # if abs(obs_d -self.cur_d) < self.params.lateral_width_gb_m:
                 if abs(obs_d) < self.params.lateral_width_gb_m:
                     gb_free = False
                     #self.get_logger().info(f"GB_FREE False, obs dist to ot lane: {obs_d} m")
@@ -273,20 +281,24 @@ class StateMachine(Node):
             gap = (obs.s_start - self.cur_s) % self.track_length
             if gap < horizon:
                 return True
-        return False
+        return Falsez
 
     @property
     def _check_availability_splini_wpts(self) -> bool:
         if self.avoidance_wpnts is None:
+            # print("case11111111111111111111111111111111111111")
+
+            self.get_logger().info
             return False
-        elif len(self.avoidance_wpnts.wpnts) == 0:
+        elif len(self.avoidance_wpnts.wpnts) == 0: #이거땜에 추월이 안되네..
+            # print("case22222222222222222222222222222222222222")
             return False
         # Say no to the ot line if the last switch was less than 0.75 seconds ago
-        elif (
-            abs(time_to_float(self.avoidance_wpnts.header.stamp) - time_to_float(self.avoidance_wpnts.last_switch_time))
-            < self.params.splini_hyst_timer_sec
-        ):
+        elif (abs(time_to_float(self.avoidance_wpnts.header.stamp) - time_to_float(self.avoidance_wpnts.last_switch_time))< self.params.splini_hyst_timer_sec):
             self.get_logger().debug(f"Still too fresh into the switch...{abs(time_to_float(self.avoidance_wpnts.last_switch_time) - time_to_float(self.get_clock().now().to_msg()))}")
+            # print("case33333333333333333333333333333333333333")
+            # print(abs(time_to_float(self.avoidance_wpnts.header.stamp) - time_to_float(self.avoidance_wpnts.last_switch_time)))
+
             return False
         else:
             # If the splinis are valid update the last valid ones
@@ -328,7 +340,7 @@ class StateMachine(Node):
                         np.array([abs(avoid_s.s_m - obs.s_center) for avoid_s in self.local_waypoints.wpnts])
                     )
                     ot_d = self.local_waypoints.wpnts[local_wpnt_idx].d_m
-                    ot_obs_dist = ot_d - obs.d_center
+                    ot_obs_dist = ot_d - obs.d_center # 추월 경로의 d값과 장애물의 중심 d값의 차를 구한다
                     if abs(ot_obs_dist) < self.params.lateral_width_ot_m:
                         emergency_break = True
                         self.get_logger().info("emergency break")
@@ -549,6 +561,7 @@ class StateMachine(Node):
     # MAIN LOOP #
     #############    
     def main_loop_callback(self):
+        # self.get_logger().info("i'm in main_looppppppppppppppppppppppp!")
         self.get_logger().debug(f"Current state: {self.state}")
         # transition logic
         if self.params.force_state:
