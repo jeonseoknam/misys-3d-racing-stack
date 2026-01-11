@@ -1,6 +1,6 @@
 # Project specific excludes
 #/External/
-/MPCC
+#/MPCC
 
 # CMake
 CMakeCache.txt
